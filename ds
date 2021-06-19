@@ -1,0 +1,5 @@
+for _ in range(dims[0]):
+        row = ""
+        for _ in range(dims[1]):
+            row += '\u258A'
+        world.append(row)
