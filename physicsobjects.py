@@ -12,7 +12,7 @@ class Link:
         self.len = len
 class PhysicsBody:
     def __init__(self, points, links):
-        self.points = points
+        self.points = points 
         self.links = links
     
 

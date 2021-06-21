@@ -2,12 +2,15 @@ import win32console, win32con, time, win32api
 import copy
 import math
 import random
+import os
+import sys
 from physicsobjects import *
 GRAVITY = 0.1
 FRICTION = 0.99
 BOUNCE = 0.01
+WIND = 1
 
-dims = (400,120)
+dims = (320,100)
 def get_distance(p1, p2): 
     dx = p2.x - p1.x
     dy = p2.y -p1.y
@@ -64,33 +67,35 @@ def update_points(points: list):
     for point in points:
         if not point.fixed:
             old_point = copy.copy(point)
-            point.x += (point.x - point.old_x) * FRICTION
-            point.y += (point.y - point.old_y) * FRICTION
+            point.x += (point.x - point.old_x) * FRICTION * WIND
+            point.y += (point.y - point.old_y) * FRICTION * WIND
             point.y += GRAVITY
             point.old_x = old_point.x
             point.old_y = old_point.y
 
 def update_links(links: list):
     for link in links:
-        dx = link.p2.x - link.p1.x
-        dy = link.p2.y - link.p1.y
-        dist = math.sqrt(dx * dx + dy * dy)
-        diff = link.len - dist
-        try:
-            percent = diff / dist / 2
-        except:
-            percent = 0
-        offset_x = dx * percent
-        offset_y = dy * percent
-        if not link.p1.fixed:
-            link.p1.x -= offset_x
-            link.p1.y -= offset_y
-        if not link.p2.fixed:
-            link.p2.x += offset_x
-            link.p2.y += offset_y
+        if link is not None:
+            dx = link.p2.x - link.p1.x
+            dy = link.p2.y - link.p1.y
+            dist = math.sqrt(dx * dx + dy * dy)
+            diff = link.len - dist
+            try:
+                percent = diff / dist / 2
+            except:
+                percent = 0
+            offset_x = dx * percent
+            offset_y = dy * percent
+            if not link.p1.fixed:
+                link.p1.x -= offset_x
+                link.p1.y -= offset_y
+            if not link.p2.fixed:
+                link.p2.x += offset_x
+                link.p2.y += offset_y
 def constrain_points(points, world, constraints):
     for p in points:
         if p.fixed:
+            world[round(p.y) * dims[0] + round(p.x)] = "\u2588"
             continue
         vx = p.x - p.old_x
         vy = p.y - p.old_y
@@ -130,8 +135,10 @@ def setup_screen(dims: tuple):
                                                        ShareMode=0,
                                                        SecurityAttributes=None,
                                                        Flags=1)
-    myConsole.SetConsoleWindowInfo(Absolute=True,ConsoleWindow = win32console.PySMALL_RECTType(0,0,1,1))                                               
+    myConsole.SetConsoleWindowInfo(Absolute=True,ConsoleWindow = win32console.PySMALL_RECTType(0,0,1,1))        
+
     myConsole.SetConsoleScreenBufferSize(win32console.PyCOORDType(dims[0],dims[1]))
+
     myConsole.SetConsoleWindowInfo(Absolute=True,ConsoleWindow = win32console.PySMALL_RECTType(0,0,dims[0]-1,dims[1]-1))  
     #myConsole.SetConsoleDisplayMode(Flags=win32console.CONSOLE_FULLSCREEN, NewScreenBufferDimensions = win32console.PyCOORDType(200,50))                                      
     myConsole.SetConsoleActiveScreenBuffer()
@@ -148,13 +155,30 @@ def clear_world(world, size):
 def main():
     total_size = dims[0] * dims[1]
     console = setup_screen(dims)
-    cloth_points = generate_points(8,24,10)
-    cloth_links = generate_links(cloth_points,8,24)
+    # cloth_points = generate_points(8,24,10)
+    # cloth_links = generate_links(cloth_points,8,24)
+    cloth_points = [Point(0,30,0,30,True),
+                    Point(10,30,10,30,False),
+                    Point(20,30,20,30,False),
+                    Point(30,30,30,30,False),
+                    Point(40,30,40,30,False),
+                    Point(30,10,30,10,False),
+                    Point(40,10,40,10,False),
+                    ]
+    cloth_links = [Link(cloth_points[0],cloth_points[1], get_distance(cloth_points[0],cloth_points[1])),
+                   Link(cloth_points[1],cloth_points[2], get_distance(cloth_points[1],cloth_points[2])),
+                   Link(cloth_points[2],cloth_points[3], get_distance(cloth_points[2],cloth_points[3])),
+                   Link(cloth_points[3],cloth_points[4], get_distance(cloth_points[3],cloth_points[4])),
+                   Link(cloth_points[4],cloth_points[5], get_distance(cloth_points[4],cloth_points[5])),
+                   Link(cloth_points[5],cloth_points[6], get_distance(cloth_points[5],cloth_points[6])),
+                   Link(cloth_points[4],cloth_points[6], get_distance(cloth_points[4],cloth_points[6])),
+                   Link(cloth_points[3],cloth_points[5], get_distance(cloth_points[4],cloth_points[6])),
+                   ]
     world = setup_empty_world(total_size)
     force_timer = 0
     fps = 30
     amount_cloth_points = len(cloth_points)
-    force_interval = 4000
+    force_interval = 2000
     while True: 
         begin_time = time.time()
         clear_world(world,total_size)
@@ -162,16 +186,32 @@ def main():
         update_links(cloth_links)
         constrain_points(cloth_points, world, (dims[0] - 1, dims[1] -1)) 
         if force_timer > force_interval:
-            cloth_points[amount_cloth_points-1].x += 50
-            cloth_points[amount_cloth_points-1].old_x += 50
-            force_timer = 0
+            cloth_points[5].x += 2
+            if force_timer > force_interval * 1.5:
+                force_timer = 0
+            # cloth_points[amount_cloth_points-1].x += 50
+            # cloth_points[amount_cloth_points-1].old_x += 50
+        #     cloth_links[11] = None
+        #     cloth_links[12] = None
+        #     cloth_links[13] = None
+        #     cloth_links[14] = None
+        #     cloth_links[15] = None
+        #     cloth_links[16] = None
+        #     cloth_links[17] = None
+        #     cloth_links[18] = None
+        #     cloth_links[19] = None
+        #     cloth_links[22] = None
+        #     cloth_links[23] = None
+        #     cloth_links[24] = None
+        #     cloth_links[25] = None
+        #     force_timer = 0
         for link in cloth_links:
-            draw_line(link.p1, link.p2, world)
+            if link is not None:
+                draw_line(link.p1, link.p2, world)
         console.WriteConsoleOutputCharacter("".join(world),win32console.PyCOORDType(0, 0))
         ms = 1000 * (time.time() - begin_time)
-        force_timer += ms + 1000/fps
+        force_timer += ms
         win32console.SetConsoleTitle(f"{ms} ms")
-        time.sleep(1/fps - ms/1000)
         #win32console.SetConsoleTitle(f"{win32api.GetCursorPos()} ms")
     
 if __name__ == "__main__":
